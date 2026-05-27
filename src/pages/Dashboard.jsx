@@ -45,7 +45,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFriends();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   // Fetch events from Supabase
