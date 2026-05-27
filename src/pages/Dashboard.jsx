@@ -470,7 +470,7 @@ export default function Dashboard() {
                         <div className="flex -space-x-2 overflow-hidden items-center mr-2">
                           {amIInvolved && (
                             <div 
-                              className="inline-block h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0" 
+                              className="h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0" 
                               style={{ backgroundColor: userColor }}
                               title="You"
                             >
@@ -480,7 +480,7 @@ export default function Dashboard() {
                           {involvedFriends.filter(Boolean).map(f => (
                             <div 
                               key={f.id} 
-                              className="inline-block h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0"
+                              className="h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0"
                               style={{ backgroundColor: f.color }}
                               title={f.name}
                             >
