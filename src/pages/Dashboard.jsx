@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { initialEvents, friends } from '../data';
+import { initialEvents } from '../data';
 import AddEventDrawer from '../components/AddEventDrawer';
 import EventDetailsDrawer from '../components/EventDetailsDrawer';
+import FriendsView from '../components/FriendsView';
+import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { 
   LogOut, 
@@ -29,9 +31,27 @@ export default function Dashboard() {
   // Far-left sidebar active state
   const [activeNav, setActiveNav] = useState('dashboard');
   
+  // Live Friends State
+  const [liveFriends, setLiveFriends] = useState([]);
+
   // Drawer states
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  const fetchFriends = async () => {
+    if (!profile) return;
+    const { data, error } = await supabase
+      .from('friendships')
+      .select('*, friend:profiles!friend_id(id, name, color)')
+      .eq('user_id', profile.id)
+      .eq('status', 'accepted');
+    if (error) console.error('Error fetching friends:', error);
+    else if (data) setLiveFriends(data.map(f => f.friend));
+  };
+
+  useEffect(() => {
+    fetchFriends();
+  }, [profile]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -57,7 +77,7 @@ export default function Dashboard() {
   // Metrics calculations
   const totalEvents = events.length;
   const volunteeredEvents = events.filter(e => e.volunteers.includes(profile?.id || '')).length;
-  const activeFriends = friends.length;
+  const activeFriends = liveFriends.length;
   
   const totalNeeded = events.reduce((acc, e) => acc + (e.volunteersNeeded || 0), 0);
   const totalFilled = events.reduce((acc, e) => {
@@ -186,7 +206,7 @@ export default function Dashboard() {
           <div className="pt-4 border-t border-[#1e1e24]/50">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Mutual Aid Network</h4>
             <div className="space-y-3">
-              {friends.map(friend => (
+              {liveFriends.map(friend => (
                 <div key={friend.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-[#1c1c21] transition-all">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 rounded-full shadow-inner" style={{ backgroundColor: friend.color }}></div>
@@ -218,7 +238,10 @@ export default function Dashboard() {
 
       {/* COLUMN 3: Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        
+        {activeNav === 'friends' ? (
+          <FriendsView friends={liveFriends} refreshFriends={fetchFriends} />
+        ) : (
+          <>
         {/* Header */}
         <header className="flex justify-between items-center px-8 py-5 border-b border-[#1e1e24]/40 bg-[#0c0c0f]/80 backdrop-blur-md sticky top-0 z-10">
           <div>
@@ -306,7 +329,7 @@ export default function Dashboard() {
 
               <div className="space-y-3">
                 {filteredEvents.map((event) => {
-                  const involvedFriends = friends.filter(f => event.volunteers.includes(f.id));
+                  const involvedFriends = liveFriends.filter(f => event.volunteers.includes(f.id));
                   const amIInvolved = profile ? event.volunteers.includes(profile.id) : false;
                   
                   // Check if urgent
@@ -461,6 +484,8 @@ export default function Dashboard() {
 
           </section>
         </div>
+          </>
+        )}
       </main>
 
       {/* Drawers */}
