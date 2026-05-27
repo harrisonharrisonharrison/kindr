@@ -71,6 +71,9 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, f
   const amIFollowing = event.followers?.includes(userId) || false;
   const amIVolunteering = event.volunteers?.includes(userId) || false;
   const isOrganizer = event.organizer_id === userId;
+  const invitableFriends = friends.filter(friend => 
+    !event.followers?.includes(friend.id) && !event.volunteers?.includes(friend.id)
+  );
 
   const handleFollowToggle = async () => {
     if (!userId || !event) return;
@@ -324,11 +327,11 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, f
         )}
         
         {/* Invite Friends Section */}
-        {amIVolunteering && friends.length > 0 && (
+        {amIVolunteering && invitableFriends.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Invite Friends</h3>
             <div className="space-y-2">
-              {friends.map(friend => (
+              {invitableFriends.map(friend => (
                 <div key={friend.id} className="bg-[#1c1c21] border border-[#27272a]/60 p-3 rounded-xl flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0" style={{ backgroundColor: friend.color }}>
