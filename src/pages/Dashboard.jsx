@@ -88,7 +88,7 @@ export default function Dashboard() {
     }
     
     if (participantsData) setLiveParticipants(participantsData);
-    if (friendsData) setLiveFriends(friendsData.map(f => f.friend));
+    if (friendsData) setLiveFriends(friendsData.map(f => f.friend).filter(Boolean));
   };
 
   useEffect(() => {
@@ -271,7 +271,7 @@ export default function Dashboard() {
           <div className="pt-4 border-t border-[#1e1e24]/50">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Mutual Aid Network</h4>
             <div className="space-y-3">
-              {liveFriends.map(friend => (
+              {liveFriends.filter(Boolean).map(friend => (
                 <div key={friend.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-[#1c1c21] transition-all">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 rounded-full shadow-inner" style={{ backgroundColor: friend.color }}></div>
@@ -455,14 +455,14 @@ export default function Dashboard() {
                               {userInitial}
                             </div>
                           )}
-                          {involvedFriends.map(f => (
+                          {involvedFriends.filter(Boolean).map(f => (
                             <div 
                               key={f.id} 
                               className="inline-block h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0"
                               style={{ backgroundColor: f.color }}
                               title={f.name}
                             >
-                              {f.name.charAt(0).toUpperCase()}
+                              {f.name?.charAt(0).toUpperCase()}
                             </div>
                           ))}
                           {eventVolunteers.length === 0 && (
@@ -567,7 +567,7 @@ export default function Dashboard() {
       <AddEventDrawer 
         isOpen={isAddEventOpen} 
         onClose={() => setIsAddEventOpen(false)} 
-        onEventAdded={fetchEvents}
+        onEventAdded={fetchData}
       />
       
       <EventDetailsDrawer 
