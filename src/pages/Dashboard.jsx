@@ -254,7 +254,8 @@ export default function Dashboard() {
       </aside>
 
       {/* COLUMN 2: Secondary Navigation Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-[#141417] border-r border-[#1e1e24]/40 flex-col justify-between p-6 flex-shrink-0">
+      {activeNav === 'dashboard' && (
+        <aside className="hidden lg:flex w-64 bg-[#141417] border-r border-[#1e1e24]/40 flex-col justify-between p-6 flex-shrink-0">
         <div className="space-y-8">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center">
@@ -321,7 +322,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </aside>
+        </aside>
+      )}
 
       {/* COLUMN 3: Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
