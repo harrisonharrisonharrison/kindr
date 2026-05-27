@@ -5,6 +5,7 @@ import EventDetailsDrawer from '../components/EventDetailsDrawer';
 import FriendsView from '../components/FriendsView';
 import ImpactView from '../components/ImpactView';
 import UpdatesView from '../components/UpdatesView';
+import JobSelectionModal from '../components/JobSelectionModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -35,6 +36,7 @@ export default function Dashboard() {
   // Drawer states
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [jobSelectionEvent, setJobSelectionEvent] = useState(null);
 
   const fetchData = async () => {
     if (!profile) return;
@@ -86,6 +88,12 @@ export default function Dashboard() {
         const updatedSelected = mapped.find(e => e.id === selectedEvent.id);
         if (updatedSelected) {
           setSelectedEvent(updatedSelected);
+        }
+      }
+      if (jobSelectionEvent) {
+        const updatedJobSelection = mapped.find(e => e.id === jobSelectionEvent.id);
+        if (updatedJobSelection) {
+          setJobSelectionEvent(updatedJobSelection);
         }
       }
     }
@@ -165,22 +173,118 @@ export default function Dashboard() {
     }
   };
 
-  const handleJoinEvent = async (e, eventId, isCurrentlyJoined) => {
-    e.stopPropagation();
+  const handleLeaveEvent = async (eventId) => {
     if (!profile) return;
     
     try {
-      if (isCurrentlyJoined) {
-        // Leave
-        await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id, role: 'volunteer' });
-      } else {
-        // Join: Delete any existing follower record first because of the unique constraint, then insert volunteer
-        await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id });
-        await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, role: 'volunteer' });
+      const { data: eventData, error: fetchErr } = await supabase
+        .from('events')
+        .select('jobs')
+        .eq('id', eventId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      let currentJobs = eventData.jobs || [];
+      let changed = false;
+      currentJobs = currentJobs.map(job => {
+        let volunteers = job.volunteers || [];
+        if (volunteers.includes(profile.id)) {
+          volunteers = volunteers.filter(v => v !== profile.id);
+          changed = true;
+        }
+        return {
+          ...job,
+          volunteers,
+          filled: volunteers.length
+        };
+      });
+
+      if (changed) {
+        const { error: updateErr } = await supabase
+          .from('events')
+          .update({ jobs: currentJobs })
+          .eq('id', eventId);
+        if (updateErr) throw updateErr;
       }
+
+      const { error: deleteErr } = await supabase
+        .from('event_participants')
+        .delete()
+        .match({ event_id: eventId, user_id: profile.id });
+      if (deleteErr) throw deleteErr;
+
       fetchData();
     } catch (err) {
+      console.error('Error leaving event:', err);
+    }
+  };
+
+  const handleJoinEvent = async (e, eventId, isCurrentlyJoined) => {
+    if (e) e.stopPropagation();
+    if (!profile) return;
+
+    const event = events.find(eventItem => eventItem.id === eventId);
+    if (!event) return;
+
+    try {
+      if (isCurrentlyJoined) {
+        await handleLeaveEvent(eventId);
+      } else {
+        if (event.jobs && event.jobs.length > 0) {
+          setJobSelectionEvent(event);
+        } else {
+          await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id });
+          await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, role: 'volunteer' });
+          fetchData();
+        }
+      }
+    } catch (err) {
       console.error('Error joining event:', err);
+    }
+  };
+
+  const handleSelectJob = async (jobLabel) => {
+    if (!profile || !jobSelectionEvent) return;
+    const eventId = jobSelectionEvent.id;
+
+    try {
+      const { data: eventData, error: fetchErr } = await supabase
+        .from('events')
+        .select('jobs')
+        .eq('id', eventId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      let currentJobs = eventData.jobs || [];
+      currentJobs = currentJobs.map(job => {
+        let volunteers = job.volunteers || [];
+        volunteers = volunteers.filter(v => v !== profile.id);
+        if (job.label === jobLabel) {
+          volunteers.push(profile.id);
+        }
+        return {
+          ...job,
+          volunteers,
+          filled: volunteers.length
+        };
+      });
+
+      const { error: updateErr } = await supabase
+        .from('events')
+        .update({ jobs: currentJobs })
+        .eq('id', eventId);
+      if (updateErr) throw updateErr;
+
+      await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id });
+      const { error: insertErr } = await supabase
+        .from('event_participants')
+        .insert([{ event_id: eventId, user_id: profile.id, role: 'volunteer' }]);
+      if (insertErr) throw insertErr;
+
+      setJobSelectionEvent(null);
+      fetchData();
+    } catch (err) {
+      console.error('Error selecting job:', err);
     }
   };
 
@@ -625,6 +729,17 @@ export default function Dashboard() {
         onClose={() => setSelectedEvent(null)}
         event={selectedEvent}
         onUpdate={fetchData}
+        onOpenJobSelection={() => setJobSelectionEvent(selectedEvent)}
+        onLeaveEvent={() => handleLeaveEvent(selectedEvent.id)}
+      />
+
+      <JobSelectionModal
+        isOpen={!!jobSelectionEvent}
+        onClose={() => setJobSelectionEvent(null)}
+        event={jobSelectionEvent}
+        userId={profile?.id}
+        onSelectJob={handleSelectJob}
+        currentJobLabel={jobSelectionEvent?.jobs?.find(j => j.volunteers?.includes(profile?.id))?.label}
       />
 
     </div>
