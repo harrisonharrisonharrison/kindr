@@ -335,7 +335,16 @@ export default function Dashboard() {
         ) : activeNav === 'impact' ? (
           <ImpactView liveEvents={events} liveParticipants={liveParticipants} profile={profile} />
         ) : activeNav === 'updates' ? (
-          <UpdatesView liveEvents={events} liveParticipants={liveParticipants} profile={profile} />
+          <UpdatesView 
+            liveEvents={events} 
+            liveParticipants={liveParticipants} 
+            profile={profile} 
+            friends={liveFriends}
+            onOpenEvent={(eventId) => {
+              const ev = events.find(e => e.id === eventId);
+              if (ev) setSelectedEvent(ev);
+            }} 
+          />
         ) : (
           <>
         {/* Header */}
@@ -625,6 +634,7 @@ export default function Dashboard() {
         onClose={() => setSelectedEvent(null)}
         event={selectedEvent}
         onUpdate={fetchData}
+        friends={liveFriends}
       />
 
     </div>

@@ -199,3 +199,35 @@ create policy "Allow updating friendship status"
 create policy "Allow deleting friendships"
     on public.friendships for delete
     using (true);
+
+
+-- -------------------------------------------------------------
+-- 6. EVENT INVITES TABLE
+-- Allows volunteers to invite their friends to events
+-- -------------------------------------------------------------
+create table public.event_invites (
+    id uuid primary key default gen_random_uuid(),
+    event_id uuid references public.events(id) on delete cascade not null,
+    inviter_id uuid references public.profiles(id) on delete cascade not null,
+    invitee_id uuid references public.profiles(id) on delete cascade not null,
+    created_at timestamptz default now(),
+    
+    -- Prevent duplicate invites for the same event
+    constraint unique_event_invite unique (event_id, inviter_id, invitee_id)
+);
+
+-- Enable RLS
+alter table public.event_invites enable row level security;
+
+-- Permissive RLS Policies for Event Invites
+create policy "Allow read access to event invites"
+    on public.event_invites for select
+    using (true);
+
+create policy "Allow all insert for demo"
+    on public.event_invites for insert
+    with check (true);
+
+create policy "Allow all delete for demo"
+    on public.event_invites for delete
+    using (true);

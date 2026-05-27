@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Bell, Loader2 } from 'lucide-react';
+import { Bell, Loader2, CalendarHeart } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function UpdatesView({ liveParticipants, profile }) {
+export default function UpdatesView({ liveParticipants, profile, friends = [], onOpenEvent }) {
   const [updates, setUpdates] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUpdates = async () => {
+    const fetchUpdatesAndInvites = async () => {
       if (!profile) return;
       
       // Get event IDs we follow or volunteer for
@@ -15,29 +16,40 @@ export default function UpdatesView({ liveParticipants, profile }) {
         .filter(p => p.user_id === profile.id)
         .map(p => p.event_id);
 
-      if (participantEventIds.length === 0) {
-        setUpdates([]);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data, error } = await supabase
-          .from('event_updates')
-          .select('*, event:events(name)')
-          .in('event_id', participantEventIds)
+        // Fetch invites
+        const { data: inviteData, error: inviteError } = await supabase
+          .from('event_invites')
+          .select('*, event:events(name, id)')
+          .eq('invitee_id', profile.id)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setUpdates(data || []);
+        if (!inviteError && inviteData) {
+          setInvites(inviteData);
+        }
+
+        // Fetch updates
+        if (participantEventIds.length > 0) {
+          const { data, error } = await supabase
+            .from('event_updates')
+            .select('*, event:events(name)')
+            .in('event_id', participantEventIds)
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            setUpdates(data);
+          }
+        } else {
+          setUpdates([]);
+        }
       } catch (err) {
-        console.error('Error fetching event updates:', err);
+        console.error('Error fetching event updates/invites:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUpdates();
+    fetchUpdatesAndInvites();
   }, [liveParticipants, profile]);
 
   const getTimeAgo = (dateString) => {
@@ -74,10 +86,41 @@ export default function UpdatesView({ liveParticipants, profile }) {
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           </div>
-        ) : updates.length > 0 ? (
+        ) : (updates.length > 0 || invites.length > 0) ? (
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[#27272a] before:to-transparent">
+            
+            {invites.map((invite) => {
+              const inviter = friends.find(f => f.id === invite.inviter_id);
+              const inviterName = inviter ? inviter.name : 'A friend';
+              return (
+                <div key={`invite-${invite.id}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full border border-emerald-500/50 bg-[#141417] text-emerald-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 transition-colors z-10">
+                    <CalendarHeart size={16} />
+                  </div>
+                  
+                  <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-emerald-500/30 bg-[#141417] hover:bg-[#1a1a22] transition-colors shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-bold text-white">Event Invitation</div>
+                      <time className="text-xs font-medium text-emerald-500">{getTimeAgo(invite.created_at)}</time>
+                    </div>
+                    <div className="text-gray-300 text-sm mt-2 leading-relaxed">
+                      <span className="font-semibold text-white">{inviterName}</span> has invited you to join <span className="font-semibold text-emerald-400">{invite.event?.name || 'an event'}</span>!
+                    </div>
+                    <div className="mt-4">
+                      <button 
+                        onClick={() => onOpenEvent && onOpenEvent(invite.event_id)}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20 w-full sm:w-auto"
+                      >
+                        View Event
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
             {updates.map((update) => (
-              <div key={update.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+              <div key={`update-${update.id}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                 {/* Icon */}
                 <div className="flex items-center justify-center w-10 h-10 rounded-full border border-[#27272a] bg-[#141417] group-hover:border-amber-500/50 text-amber-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 transition-colors z-10">
                   <Bell size={16} />

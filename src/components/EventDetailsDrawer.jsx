@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import Drawer from './Drawer';
-import { Calendar, MapPin, User, CheckCircle2, Heart } from 'lucide-react';
+import { Calendar, MapPin, User, CheckCircle2, Heart, Users, UserPlus, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { currentUser } from '../data';
 
-export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate }) {
+export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, friends = [] }) {
   const { profile } = useAuth();
   const [updates, setUpdates] = useState([]);
   const [newUpdateText, setNewUpdateText] = useState('');
   const [postIsLoading, setPostIsLoading] = useState(false);
+  const [sentInvites, setSentInvites] = useState([]);
+  const [inviteIsLoading, setInviteIsLoading] = useState(null);
   
   const userId = profile?.id || currentUser.id;
 
@@ -38,11 +40,28 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
     }
   };
 
-  // Load live updates from event_updates table on mount / change
+  const fetchSentInvites = async () => {
+    if (!event || !userId) return;
+    try {
+      const { data, error } = await supabase
+        .from('event_invites')
+        .select('invitee_id')
+        .eq('event_id', event.id)
+        .eq('inviter_id', userId);
+      
+      if (!error && data) {
+        setSentInvites(data.map(d => d.invitee_id));
+      }
+    } catch (err) {
+      console.error('Error fetching sent invites:', err);
+    }
+  };
+
+  // Load live updates and invites on mount / change
   useEffect(() => {
     if (isOpen && event) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchEventUpdates();
+      fetchSentInvites();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, event]);
@@ -148,6 +167,25 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
       alert('Failed to post live update: ' + err.message);
     } finally {
       setPostIsLoading(false);
+    }
+  };
+
+  const handleInviteFriend = async (friendId) => {
+    if (!event || !userId) return;
+    setInviteIsLoading(friendId);
+    try {
+      const { error } = await supabase
+        .from('event_invites')
+        .insert([{ event_id: event.id, inviter_id: userId, invitee_id: friendId }]);
+      if (!error) {
+        setSentInvites([...sentInvites, friendId]);
+      } else {
+        console.error('Insert error:', error.message);
+      }
+    } catch (err) {
+      console.error('Error sending invite:', err.message);
+    } finally {
+      setInviteIsLoading(null);
     }
   };
 
@@ -261,6 +299,42 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+        
+        {/* Invite Friends Section */}
+        {amIVolunteering && friends.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Invite Friends</h3>
+            <div className="space-y-2">
+              {friends.map(friend => (
+                <div key={friend.id} className="bg-[#1c1c21] border border-[#27272a]/60 p-3 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0" style={{ backgroundColor: friend.color }}>
+                      <span className="leading-none mt-[1px]">{friend.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-white">{friend.name}</span>
+                  </div>
+                  <button
+                    onClick={() => handleInviteFriend(friend.id)}
+                    disabled={sentInvites.includes(friend.id) || inviteIsLoading === friend.id}
+                    className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center ${
+                      sentInvites.includes(friend.id)
+                        ? 'bg-[#27272a] text-gray-400 cursor-not-allowed'
+                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 disabled:opacity-50'
+                    }`}
+                  >
+                    {inviteIsLoading === friend.id ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : sentInvites.includes(friend.id) ? (
+                      <span className="flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Invited</span>
+                    ) : (
+                      <span className="flex items-center"><UserPlus className="w-3.5 h-3.5 mr-1.5" /> Invite</span>
+                    )}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
