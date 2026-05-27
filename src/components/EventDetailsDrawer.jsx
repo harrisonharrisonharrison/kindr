@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import Drawer from './Drawer';
-import { Calendar, MapPin, User, CheckCircle2, Heart, Users, UserPlus, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, User, CheckCircle2, Heart, Users, UserPlus, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { currentUser } from '../data';
 
-export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, friends = [] }) {
+export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, friends = [], onOpenJobSelection, onLeaveEvent }) {
   const { profile } = useAuth();
   const [updates, setUpdates] = useState([]);
   const [newUpdateText, setNewUpdateText] = useState('');
@@ -115,29 +115,29 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, f
 
     try {
       if (amIVolunteering) {
-        // Leave
-        const { error } = await supabase
-          .from('event_participants')
-          .delete()
-          .eq('event_id', event.id)
-          .eq('user_id', userId)
-          .eq('role', 'volunteer');
-        if (error) throw error;
+        if (onLeaveEvent) {
+          await onLeaveEvent();
+        }
       } else {
-        // Join (Delete any follower record first)
-        await supabase
-          .from('event_participants')
-          .delete()
-          .eq('event_id', event.id)
-          .eq('user_id', userId);
+        if (event.jobs && event.jobs.length > 0) {
+          if (onOpenJobSelection) {
+            onOpenJobSelection();
+          }
+        } else {
+          await supabase
+            .from('event_participants')
+            .delete()
+            .eq('event_id', event.id)
+            .eq('user_id', userId);
+            
+          const { error } = await supabase
+            .from('event_participants')
+            .insert([{ event_id: event.id, user_id: userId, role: 'volunteer' }]);
+          if (error) throw error;
           
-        const { error } = await supabase
-          .from('event_participants')
-          .insert([{ event_id: event.id, user_id: userId, role: 'volunteer' }]);
-        if (error) throw error;
+          if (onUpdate) onUpdate();
+        }
       }
-
-      if (onUpdate) onUpdate();
     } catch (err) {
       console.error('Error toggling join state:', err.message);
     }
@@ -213,19 +213,39 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate, f
           </div>
         </div>
 
+        {/* Your Role (if volunteering) */}
+        {amIVolunteering && (
+          <div className="bg-[#1c1c21] border border-orange-500/20 p-4 rounded-xl flex items-center justify-between shadow-sm shadow-orange-500/5 animate-in fade-in duration-200">
+            <div>
+              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block">Your Role</span>
+              <strong className="text-white text-sm mt-0.5 block">
+                {event.jobs?.find(j => j.volunteers?.includes(userId))?.label || 'General Volunteer'}
+              </strong>
+            </div>
+            {event.jobs && event.jobs.length > 0 && (
+              <button 
+                onClick={onOpenJobSelection}
+                className="px-3 py-1.5 bg-[#27272a]/60 hover:bg-[#27272a] text-xs font-bold text-orange-500 hover:text-orange-400 border border-[#27272a] hover:border-orange-500/20 rounded-lg transition-all cursor-pointer active:scale-97"
+              >
+                Switch Job
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Action Button - Join & Follow */}
         <div className="flex space-x-3">
           <button 
             onClick={handleJoinToggle}
             className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all border cursor-pointer active:scale-98 ${
               amIVolunteering
-                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
+                ? 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20 hover:text-red-400' 
                 : 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/10'
             }`}
           >
             {amIVolunteering ? (
               <span className="flex items-center justify-center">
-                <CheckCircle2 size={18} className="mr-2 text-emerald-500" /> Joined Event
+                <X size={18} className="mr-2 text-red-500" /> Leave Event
               </span>
             ) : (
               "Join Event"
