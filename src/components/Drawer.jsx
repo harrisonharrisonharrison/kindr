@@ -17,30 +17,30 @@ export default function Drawer({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden font-sans">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Drawer Panel */}
       <div className="absolute inset-y-0 right-0 max-w-md w-full flex">
-        <div className="w-full h-full bg-white shadow-xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-0">
+        <div className="w-full h-full bg-[#141417] border-l border-[#27272a]/35 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-0 text-[#f3f4f6]">
           
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between px-6 py-5 border-b border-[#27272a]/35 bg-[#0e0e11]/80 backdrop-blur-sm">
+            <h2 className="text-lg font-bold text-white tracking-tight">{title}</h2>
             <button 
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+              className="p-2 rounded-xl hover:bg-[#27272a] text-gray-400 hover:text-white transition-all active:scale-95 cursor-pointer"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
           
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {children}
           </div>
         </div>

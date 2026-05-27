@@ -21,26 +21,34 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfbfb] flex flex-col justify-center items-center p-4 font-sans">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+    <div className="min-h-screen bg-[#0b0b0c] flex flex-col justify-center items-center p-4 font-sans relative overflow-hidden">
+      
+      {/* Background glowing blob */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div className="w-full max-w-md bg-[#141417]/80 backdrop-blur-md rounded-2xl shadow-2xl shadow-black/60 border border-[#27272a]/30 p-8 z-10">
+        
+        {/* Brand Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-2">
-            <img src="/kindr.png" alt="kindr logo" className="h-10 w-10 object-contain" />
-            <span className="font-bold text-2xl tracking-tight text-gray-900">kindr</span>
+            <div className="w-10 h-10 bg-gradient-to-tr from-orange-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <img src="/kindr.png" alt="kindr logo" className="h-6 w-6 object-contain invert brightness-0" />
+            </div>
+            <span className="font-bold text-2xl tracking-tight text-white">kindr</span>
           </div>
         </div>
         
-        <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-center text-white mb-2 tracking-tight">
           {isLogin ? 'Welcome back' : 'Create an account'}
         </h2>
-        <p className="text-center text-gray-500 mb-8">
-          {isLogin ? 'Log in to access your account' : 'Sign up to start organizing events'}
+        <p className="text-center text-gray-400 text-sm mb-8">
+          {isLogin ? 'Log in to access your mutual aid network' : 'Sign up to start organizing events'}
         </p>
 
         {/* Google Auth Button */}
         <button 
           onClick={loginWithGoogle}
-          className="w-full py-3 mb-6 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+          className="w-full py-3 mb-6 bg-[#1c1c21] border border-[#27272a]/80 text-white rounded-xl font-semibold hover:bg-[#27272a] hover:border-orange-500/50 transition-all flex items-center justify-center space-x-3 cursor-pointer shadow-sm active:scale-98"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -65,58 +73,59 @@ export default function Auth() {
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
+            <div className="w-full border-t border-[#27272a]/55"></div>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+          <div className="relative flex justify-center text-xs">
+            <span className="px-3 bg-[#141417] text-gray-500 font-semibold uppercase tracking-wider">Or continue with email</span>
           </div>
         </div>
 
         <form onSubmit={handleEmailSubmit} className="space-y-4">
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Full Name</label>
               <input 
                 type="text" 
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-[#1c1c21] border border-[#27272a]/80 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors text-white placeholder-gray-600 text-sm"
                 placeholder="John Doe"
               />
             </div>
           )}
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email Address</label>
             <input 
               type="email" 
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+              className="w-full px-4 py-2.5 bg-[#1c1c21] border border-[#27272a]/80 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors text-white placeholder-gray-600 text-sm"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Password</label>
             <input 
               type="password" 
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+              className="w-full px-4 py-2.5 bg-[#1c1c21] border border-[#27272a]/80 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors text-white placeholder-gray-600 text-sm"
               placeholder="••••••••"
             />
           </div>
 
           <button 
             type="submit"
-            className="w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors mt-6 opacity-50 cursor-not-allowed"
+            className="w-full py-3 bg-[#1c1c21] border border-[#27272a]/80 text-gray-500 rounded-xl font-semibold mt-6 cursor-not-allowed opacity-50 text-sm"
             title="Email auth not yet implemented"
+            disabled
           >
             {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-400">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <button 
               onClick={() => setIsLogin(!isLogin)}
-              className="text-green-600 font-semibold hover:text-green-700 transition-colors"
+              className="text-orange-500 font-bold hover:text-orange-400 transition-colors ml-1"
             >
               {isLogin ? 'Sign up' : 'Log in'}
             </button>
