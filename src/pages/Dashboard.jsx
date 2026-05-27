@@ -574,7 +574,7 @@ export default function Dashboard() {
         isOpen={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}
         event={selectedEvent}
-        onUpdate={fetchEvents}
+        onUpdate={fetchData}
       />
 
     </div>
