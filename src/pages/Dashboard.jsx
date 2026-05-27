@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { initialEvents } from '../data';
 import AddEventDrawer from '../components/AddEventDrawer';
 import EventDetailsDrawer from '../components/EventDetailsDrawer';
 import FriendsView from '../components/FriendsView';
+import ImpactView from '../components/ImpactView';
+import UpdatesView from '../components/UpdatesView';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -24,7 +25,8 @@ import {
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('Events');
-  const [events] = useState(initialEvents);
+  const [events, setEvents] = useState([]);
+  const [liveParticipants, setLiveParticipants] = useState([]);
   const { user, profile, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
   
@@ -38,19 +40,34 @@ export default function Dashboard() {
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const fetchFriends = async () => {
+  const fetchData = async () => {
     if (!profile) return;
-    const { data, error } = await supabase
+    
+    // Fetch events with organizer info
+    const { data: eventsData } = await supabase
+      .from('events')
+      .select('*, organizer:profiles!organizer_id(id, name, color)')
+      .order('time', { ascending: true });
+    
+    // Fetch all participants to compute counts
+    const { data: participantsData } = await supabase
+      .from('event_participants')
+      .select('*');
+
+    // Fetch friends
+    const { data: friendsData } = await supabase
       .from('friendships')
       .select('*, friend:profiles!friend_id(id, name, color)')
       .eq('user_id', profile.id)
       .eq('status', 'accepted');
-    if (error) console.error('Error fetching friends:', error);
-    else if (data) setLiveFriends(data.map(f => f.friend));
+
+    if (eventsData) setEvents(eventsData);
+    if (participantsData) setLiveParticipants(participantsData);
+    if (friendsData) setLiveFriends(friendsData.map(f => f.friend));
   };
 
   useEffect(() => {
-    fetchFriends();
+    fetchData();
   }, [profile]);
 
   // Redirect to auth if not logged in
@@ -76,13 +93,12 @@ export default function Dashboard() {
 
   // Metrics calculations
   const totalEvents = events.length;
-  const volunteeredEvents = events.filter(e => e.volunteers.includes(profile?.id || '')).length;
+  const volunteeredEvents = liveParticipants.filter(p => p.user_id === profile?.id && p.role === 'volunteer').length;
   const activeFriends = liveFriends.length;
   
   const totalNeeded = events.reduce((acc, e) => acc + (e.volunteersNeeded || 0), 0);
   const totalFilled = events.reduce((acc, e) => {
-    // Deduplicate and combine unique volunteers
-    return acc + (e.volunteers?.length || 0);
+    return acc + liveParticipants.filter(p => p.event_id === e.id && p.role === 'volunteer').length;
   }, 0);
   const spotsLeft = Math.max(0, totalNeeded - totalFilled);
   const filledPercentage = totalNeeded > 0 ? Math.round((totalFilled / totalNeeded) * 100) : 0;
@@ -90,9 +106,29 @@ export default function Dashboard() {
   // Filter events based on active tab
   const filteredEvents = events.filter(event => {
     if (activeTab === 'Events') return true;
-    if (activeTab === 'Your Events') return event.volunteers.includes(profile?.id || '');
+    if (activeTab === 'Your Events') {
+      return liveParticipants.some(p => p.event_id === event.id && p.user_id === profile?.id && p.role === 'volunteer');
+    }
     return true;
   });
+
+  const handleFollowEvent = async (e, eventId, isCurrentlyFollowing) => {
+    e.stopPropagation(); // Prevent opening event details drawer
+    if (!profile) return;
+    
+    try {
+      if (isCurrentlyFollowing) {
+        // Unfollow
+        await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id, role: 'follower' });
+      } else {
+        // Follow
+        await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, role: 'follower' });
+      }
+      fetchData(); // Refresh everything
+    } catch (err) {
+      console.error('Error following event:', err);
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-[#0b0b0c] text-[#f3f4f6] font-sans antialiased overflow-hidden">
@@ -239,7 +275,11 @@ export default function Dashboard() {
       {/* COLUMN 3: Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {activeNav === 'friends' ? (
-          <FriendsView friends={liveFriends} refreshFriends={fetchFriends} />
+          <FriendsView friends={liveFriends} refreshFriends={fetchData} />
+        ) : activeNav === 'impact' ? (
+          <ImpactView liveEvents={events} liveParticipants={liveParticipants} profile={profile} />
+        ) : activeNav === 'updates' ? (
+          <UpdatesView liveEvents={events} liveParticipants={liveParticipants} profile={profile} />
         ) : (
           <>
         {/* Header */}
@@ -250,14 +290,6 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="lg:hidden flex items-center space-x-2 mr-2">
-              <button 
-                onClick={() => setActiveTab(activeTab === 'Events' ? 'Your Events' : 'Events')}
-                className="px-3 py-1.5 bg-[#141417] text-gray-300 border border-[#27272a] rounded-lg text-xs font-semibold"
-              >
-                {activeTab === 'Events' ? 'Show Joined' : 'Show All'}
-              </button>
-            </div>
             <button 
               onClick={() => setIsAddEventOpen(true)}
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm transition-all flex items-center shadow-lg shadow-orange-500/10 active:scale-95 cursor-pointer"
@@ -329,11 +361,17 @@ export default function Dashboard() {
 
               <div className="space-y-3">
                 {filteredEvents.map((event) => {
-                  const involvedFriends = liveFriends.filter(f => event.volunteers.includes(f.id));
-                  const amIInvolved = profile ? event.volunteers.includes(profile.id) : false;
+                  const eventVolunteers = liveParticipants.filter(p => p.event_id === event.id && p.role === 'volunteer');
+                  const volunteerIds = eventVolunteers.map(v => v.user_id);
+                  const involvedFriends = liveFriends.filter(f => volunteerIds.includes(f.id));
                   
-                  // Check if urgent
-                  const isUrgent = event.name.toLowerCase().includes('evacuation') || event.time.toLowerCase().includes('urgent');
+                  const myParticipantRecord = liveParticipants.find(p => p.user_id === profile?.id && p.event_id === event.id);
+                  const amIInvolved = myParticipantRecord?.role === 'volunteer';
+                  const amIFollowing = myParticipantRecord?.role === 'follower';
+                  
+                  const eventDate = new Date(event.time);
+                  const isUrgent = (eventDate - new Date()) < 86400000 && (eventDate - new Date()) > 0;
+                  const formattedTime = eventDate.toLocaleDateString() + ' ' + eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                   return (
                     <div 
@@ -357,7 +395,7 @@ export default function Dashboard() {
                             </span>
                           )}
                           {amIInvolved && (
-                            <span className="text-[10px] uppercase font-extrabold tracking-wider bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full border border-blue-500/20">
+                            <span className="text-[10px] uppercase font-extrabold tracking-wider bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">
                               Joined
                             </span>
                           )}
@@ -366,11 +404,11 @@ export default function Dashboard() {
                         <div className="flex items-center space-x-4 text-xs text-gray-400 flex-wrap">
                           <div className="flex items-center space-x-1.5">
                             <Clock size={12} className="text-gray-500" />
-                            <span className="truncate">{event.time}</span>
+                            <span className="truncate">{formattedTime}</span>
                           </div>
                           <div className="flex items-center space-x-1.5">
                             <MapPin size={12} className="text-gray-500" />
-                            <span className="truncate max-w-[150px] md:max-w-[250px]">{event.location.split(',')[0]}</span>
+                            <span className="truncate max-w-[150px] md:max-w-[250px]">{event.location?.split(',')[0]}</span>
                           </div>
                         </div>
                       </div>
@@ -378,7 +416,7 @@ export default function Dashboard() {
                       {/* Right Avatars & Action */}
                       <div className="flex items-center space-x-4 shrink-0">
                         {/* Overlapping circular avatars */}
-                        <div className="flex -space-x-2 overflow-hidden">
+                        <div className="flex -space-x-2 overflow-hidden items-center mr-2">
                           {amIInvolved && (
                             <div 
                               className="inline-block h-7 w-7 rounded-full border border-[#141417] text-white flex items-center justify-center text-[10px] font-bold shadow-md select-none shrink-0" 
@@ -398,10 +436,18 @@ export default function Dashboard() {
                               {f.name.charAt(0).toUpperCase()}
                             </div>
                           ))}
-                          {event.volunteers?.length === 0 && (
-                            <span className="text-xs text-gray-500 italic pr-1">No signups yet</span>
+                          {eventVolunteers.length === 0 && (
+                            <span className="text-[10px] text-gray-500 uppercase tracking-widest pl-2">No signups</span>
                           )}
                         </div>
+                        
+                        <button 
+                          onClick={(e) => handleFollowEvent(e, event.id, amIFollowing)}
+                          className={`p-2 rounded-full transition-all flex items-center justify-center ${amIFollowing ? 'bg-rose-500/20 text-rose-500' : 'bg-[#27272a]/50 text-gray-400 hover:text-rose-500 hover:bg-rose-500/10'}`}
+                          title={amIFollowing ? "Unfollow" : "Follow"}
+                        >
+                          <Heart size={16} className={amIFollowing ? "fill-current" : ""} />
+                        </button>
                         
                         <div className="text-gray-500 group-hover:text-white transition-colors">
                           <ChevronRight size={18} />
