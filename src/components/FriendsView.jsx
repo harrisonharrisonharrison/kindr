@@ -175,7 +175,7 @@ export default function FriendsView({ friends, refreshFriends }) {
                 <div key={user.id} className="flex items-center justify-between bg-[#1c1c21] p-3 rounded-xl border border-[#27272a]/40">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: user.color }}>
-                      {user.name.charAt(0).toUpperCase()}
+                      <span className="leading-none mt-[1px]">{user.name.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-white">{user.name}</p>
@@ -220,7 +220,7 @@ export default function FriendsView({ friends, refreshFriends }) {
                 <div key={req.requestId} className="flex items-center justify-between bg-[#1c1c21] p-3 rounded-xl border border-[#27272a]/40">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: req.user.color }}>
-                      {req.user.name.charAt(0).toUpperCase()}
+                      <span className="leading-none mt-[1px]">{req.user.name.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-white">{req.user.name}</p>
@@ -261,7 +261,7 @@ export default function FriendsView({ friends, refreshFriends }) {
               <div key={friend.id} className="bg-[#141417] border border-[#27272a]/20 p-4 rounded-xl flex items-center justify-between group hover:border-emerald-500/30 transition-all">
                 <div className="flex items-center space-x-4 min-w-0">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0" style={{ backgroundColor: friend.color }}>
-                    {friend.name.charAt(0).toUpperCase()}
+                    <span className="leading-none mt-[1px]">{friend.name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-base font-semibold text-white truncate group-hover:text-emerald-500 transition-colors">{friend.name}</p>

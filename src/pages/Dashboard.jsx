@@ -313,7 +313,7 @@ export default function Dashboard() {
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0"
               style={{ backgroundColor: userColor }}
             >
-              {userInitial}
+              <span className="leading-none mt-[1px]">{userInitial}</span>
             </div>
             <div className="truncate leading-tight">
               <p className="text-sm font-semibold text-white truncate">{profile?.name || 'User'}</p>
@@ -474,7 +474,7 @@ export default function Dashboard() {
                               style={{ backgroundColor: userColor }}
                               title="You"
                             >
-                              {userInitial}
+                              <span className="leading-none mt-[1px]">{userInitial}</span>
                             </div>
                           )}
                           {involvedFriends.filter(Boolean).map(f => (
@@ -484,7 +484,7 @@ export default function Dashboard() {
                               style={{ backgroundColor: f.color }}
                               title={f.name}
                             >
-                              {f.name?.charAt(0).toUpperCase()}
+                              <span className="leading-none mt-[1px]">{f.name?.charAt(0).toUpperCase()}</span>
                             </div>
                           ))}
                           {eventVolunteers.length === 0 && (
