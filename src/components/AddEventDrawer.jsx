@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Drawer from './Drawer';
 import { Plus, X, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
-export default function AddEventDrawer({ isOpen, onClose }) {
+export default function AddEventDrawer({ isOpen, onClose, onEventAdded }) {
   // Tabs: 'manual' or 'ai'
   const [creationMode, setCreationMode] = useState('ai');
   
@@ -42,11 +43,65 @@ export default function AddEventDrawer({ isOpen, onClose }) {
     setFormData(prev => ({ ...prev, jobs: newJobs }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Submitting event:', formData);
-    // Submit logic here
-    onClose();
+    console.log('Submitting event to Supabase:', formData);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
+      const eventPayload = {
+        name: formData.name,
+        location: formData.location,
+        description: formData.description,
+        time: new Date(formData.time).toISOString(),
+        volunteers_needed: formData.volunteersNeeded,
+        supplies: formData.supplies
+          ? formData.supplies.split(',').map(s => s.trim()).filter(Boolean)
+          : [],
+        jobs: formData.jobs.map(j => ({
+          label: j.label,
+          needed: j.needed,
+          filled: j.filled || 0
+        })),
+        organizer_id: userId || '00000000-0000-0000-0000-000000000000'
+      };
+
+      const { data, error } = await supabase
+        .from('events')
+        .insert([eventPayload])
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('Successfully created event in database:', data);
+
+      // Reset AI input and form states on successful save so it is blank next time it opens
+      setAiRawText('');
+      setAiQuestions([]);
+      setAiAnswers({});
+      setFormData({
+        name: '',
+        location: '',
+        description: '',
+        time: '',
+        volunteersNeeded: 0,
+        supplies: '',
+        jobs: []
+      });
+      setCreationMode('ai'); // Switch back to default AI mode
+
+      if (onEventAdded) {
+        onEventAdded();
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error creating event:', err);
+      alert('Failed to create event: ' + err.message);
+    }
   };
 
   // Helper to get formatted default time for datetime-local
@@ -159,6 +214,9 @@ export default function AddEventDrawer({ isOpen, onClose }) {
         supplies: parsed.supplies || '',
         jobs: (parsed.jobs || []).map(j => ({ ...j, filled: 0 }))
       });
+
+      // Clear the AI prompt input text so it disappears once details are successfully generated
+      setAiRawText('');
 
       // Handle clarifying questions
       if (parsed.questions && parsed.questions.length > 0) {

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { initialEvents } from '../data';
 import AddEventDrawer from '../components/AddEventDrawer';
 import EventDetailsDrawer from '../components/EventDetailsDrawer';
 import FriendsView from '../components/FriendsView';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { 
   LogOut, 
   LayoutGrid, 
@@ -13,19 +12,15 @@ import {
   Heart, 
   Bell, 
   Plus, 
-  Calendar, 
   MapPin, 
-  Flame, 
-  User, 
   Clock, 
-  CheckCircle2, 
   ChevronRight 
 } from 'lucide-react';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('Events');
-  const [events] = useState(initialEvents);
-  const { user, profile, isAuthenticated, loading, logout } = useAuth();
+  const [events, setEvents] = useState([]);
+  const { profile, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
   
   // Far-left sidebar active state
@@ -52,6 +47,57 @@ export default function Dashboard() {
   useEffect(() => {
     fetchFriends();
   }, [profile]);
+
+  // Fetch events from Supabase
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*, event_participants(*)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mapped = (data || []).map(event => ({
+        id: event.id,
+        name: event.name,
+        location: event.location,
+        description: event.description,
+        time: event.time,
+        volunteersNeeded: event.volunteers_needed,
+        supplies: event.supplies || [],
+        jobs: event.jobs || [],
+        volunteers: (event.event_participants || [])
+          .filter(p => p.role === 'volunteer')
+          .map(p => p.user_id),
+        followers: (event.event_participants || [])
+          .filter(p => p.role === 'follower')
+          .map(p => p.user_id),
+        organizer_id: event.organizer_id
+      }));
+
+      setEvents(mapped);
+
+      // Keep details drawer updated in real-time
+      if (selectedEvent) {
+        const updatedSelected = mapped.find(e => e.id === selectedEvent.id);
+        if (updatedSelected) {
+          setSelectedEvent(updatedSelected);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching events:', err.message);
+    }
+  };
+
+  // Fetch events on mount and when authentication changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchEvents();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -492,12 +538,14 @@ export default function Dashboard() {
       <AddEventDrawer 
         isOpen={isAddEventOpen} 
         onClose={() => setIsAddEventOpen(false)} 
+        onEventAdded={fetchEvents}
       />
       
       <EventDetailsDrawer 
         isOpen={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}
         event={selectedEvent}
+        onUpdate={fetchEvents}
       />
 
     </div>
