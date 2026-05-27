@@ -9,19 +9,32 @@ function App() {
     <div className="min-h-screen flex flex-col bg-[#fbfbfb] font-sans">
       {/* Header / Tabs */}
       <header className="flex justify-between items-center px-8 py-4 border-b border-gray-200 bg-white">
-        <div className="flex space-x-8">
-          <button
-            className={`text-2xl font-bold pb-2 ${activeTab === 'Events' ? 'text-black border-b-4 border-green-500' : 'text-gray-400 hover:text-gray-600'}`}
-            onClick={() => setActiveTab('Events')}
+        <div className="flex items-center space-x-8">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('Events');
+            }}
+            className="flex items-center space-x-2 mr-4"
           >
-            Events
-          </button>
-          <button
-            className={`text-2xl font-bold pb-2 ${activeTab === 'Your Events' ? 'text-black border-b-4 border-green-500' : 'text-gray-400 hover:text-gray-600'}`}
-            onClick={() => setActiveTab('Your Events')}
-          >
-            Your Events
-          </button>
+            <img src="/kindr.png" alt="kindr logo" className="h-8 w-8 object-contain" />
+            <span className="font-bold text-xl tracking-tight text-gray-900">kindr</span>
+          </a>
+          <div className="flex space-x-8">
+            <button
+              className={`text-2xl font-bold pb-2 ${activeTab === 'Events' ? 'text-black border-b-4 border-green-500' : 'text-gray-400 hover:text-gray-600'}`}
+              onClick={() => setActiveTab('Events')}
+            >
+              Events
+            </button>
+            <button
+              className={`text-2xl font-bold pb-2 ${activeTab === 'Your Events' ? 'text-black border-b-4 border-green-500' : 'text-gray-400 hover:text-gray-600'}`}
+              onClick={() => setActiveTab('Your Events')}
+            >
+              Your Events
+            </button>
+          </div>
         </div>
         <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center">
           {/* Avatar placeholder */}
