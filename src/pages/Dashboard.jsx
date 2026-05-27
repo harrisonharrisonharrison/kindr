@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
-import { initialEvents, currentUser, friends } from '../data';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { initialEvents, friends } from '../data';
 import AddEventDrawer from '../components/AddEventDrawer';
 import EventDetailsDrawer from '../components/EventDetailsDrawer';
+import { useAuth } from '../context/AuthContext';
+import { LogOut } from 'lucide-react';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('Events');
   const [events] = useState(initialEvents);
+  const { user, profile, isAuthenticated, loading, logout } = useAuth();
+  const navigate = useNavigate();
   
   // Drawer states
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null); // null when closed, event object when open
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate('/auth');
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  if (loading || !isAuthenticated) {
+    return <div className="min-h-screen bg-[#fbfbfb] flex items-center justify-center">Loading...</div>;
+  }
+
+  // Fallback styling if profile isn't fully loaded yet
+  const userColor = profile?.color || '#3B82F6';
+  const userInitial = profile?.name ? profile.name.charAt(0).toUpperCase() : '?';
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fbfbfb] font-sans">
@@ -41,8 +61,21 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white shadow-sm overflow-hidden flex items-center justify-center">
-          <span className="text-gray-500 text-sm font-semibold">You</span>
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={logout}
+            className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100"
+            title="Log out"
+          >
+            <LogOut size={20} />
+          </button>
+          <div 
+            className="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden flex items-center justify-center text-white font-bold"
+            style={{ backgroundColor: userColor }}
+            title={profile?.name || user.email}
+          >
+            {userInitial}
+          </div>
         </div>
       </header>
 
@@ -52,7 +85,7 @@ export default function Dashboard() {
         <div className="flex-1 space-y-0">
           {events.map((event, index) => {
             const involvedFriends = friends.filter(f => event.volunteers.includes(f.id));
-            const amIInvolved = event.volunteers.includes(currentUser.id);
+            const amIInvolved = profile ? event.volunteers.includes(profile.id) : false;
             
             return (
               <div 
@@ -66,7 +99,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex space-x-1">
                   {amIInvolved && (
-                    <div className="w-4 h-4 rounded-sm border border-gray-300 bg-white shadow-sm" title="You"></div>
+                    <div className="w-4 h-4 rounded-sm border border-gray-300 shadow-sm" style={{ backgroundColor: userColor }} title="You"></div>
                   )}
                   {involvedFriends.map(f => (
                     <div key={f.id} className="w-4 h-4 rounded-sm shadow-sm" style={{ backgroundColor: f.color }} title={f.name}></div>
@@ -90,8 +123,8 @@ export default function Dashboard() {
 
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-5 h-5 rounded-sm border border-gray-300 bg-white shadow-sm"></div>
-              <span className="font-medium text-gray-900">You</span>
+              <div className="w-5 h-5 rounded-sm shadow-sm border border-gray-300" style={{ backgroundColor: userColor }}></div>
+              <span className="font-medium text-gray-900">{profile?.name || 'You'}</span>
             </div>
             
             <div>
