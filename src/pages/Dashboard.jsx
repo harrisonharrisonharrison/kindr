@@ -39,11 +39,14 @@ export default function Dashboard() {
   const fetchData = async () => {
     if (!profile) return;
     
-    // Fetch events with organizer info and event_participants
     const { data: eventsData, error: eventsError } = await supabase
       .from('events')
       .select('*, organizer:profiles!organizer_id(id, name, color), event_participants(*)')
       .order('time', { ascending: true });
+
+    if (eventsError) {
+      console.error('Error fetching events:', eventsError);
+    }
     
     // Fetch all participants globally to compute dashboard counts and feed ImpactView
     const { data: participantsData } = await supabase

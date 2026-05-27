@@ -1,5 +1,4 @@
-import React from 'react';
-import { Heart, Calendar, MapPin, Clock } from 'lucide-react';
+import { Heart, Calendar, MapPin } from 'lucide-react';
 
 export default function ImpactView({ liveEvents, liveParticipants, profile }) {
   // Get all events the user is participating in or following

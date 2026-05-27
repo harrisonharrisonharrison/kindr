@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Drawer from './Drawer';
-import { Calendar, MapPin, User, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, User, CheckCircle2, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { currentUser } from '../data';

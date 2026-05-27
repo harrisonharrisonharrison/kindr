@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function UpdatesView({ liveEvents, liveParticipants, profile }) {
+export default function UpdatesView({ liveParticipants, profile }) {
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +38,7 @@ export default function UpdatesView({ liveEvents, liveParticipants, profile }) {
     };
 
     fetchUpdates();
-  }, [liveParticipants, profile?.id]);
+  }, [liveParticipants, profile]);
 
   const getTimeAgo = (dateString) => {
     const date = new Date(dateString);
@@ -76,7 +76,7 @@ export default function UpdatesView({ liveEvents, liveParticipants, profile }) {
           </div>
         ) : updates.length > 0 ? (
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[#27272a] before:to-transparent">
-            {updates.map((update, index) => (
+            {updates.map((update) => (
               <div key={update.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                 {/* Icon */}
                 <div className="flex items-center justify-center w-10 h-10 rounded-full border border-[#27272a] bg-[#141417] group-hover:border-amber-500/50 text-amber-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 transition-colors z-10">
