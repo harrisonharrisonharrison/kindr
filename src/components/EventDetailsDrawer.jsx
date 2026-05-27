@@ -1,13 +1,122 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import Drawer from './Drawer';
 import { Calendar, MapPin, User, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { currentUser } from '../data';
 
-export default function EventDetailsDrawer({ isOpen, onClose, event }) {
+export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate }) {
+  const { profile } = useAuth();
+  const [updates, setUpdates] = useState([]);
+  const [newUpdateText, setNewUpdateText] = useState('');
+  const [postIsLoading, setPostIsLoading] = useState(false);
+  
+  const userId = profile?.id || currentUser.id;
+
+  // Reusable function to load updates
+  const fetchEventUpdates = async () => {
+    if (!event) return;
+    try {
+      const { data, error } = await supabase
+        .from('event_updates')
+        .select('*')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching updates:', error.message);
+      } else {
+        setUpdates(
+          (data || []).map(u => ({
+            timestamp: new Date(u.created_at).toLocaleDateString() + ' ' + new Date(u.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: u.text
+          }))
+        );
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching updates:', err);
+    }
+  };
+
+  // Load live updates from event_updates table on mount / change
+  useEffect(() => {
+    if (isOpen && event) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchEventUpdates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, event]);
+
   if (!event) return null;
 
-  const amIFollowing = event.followers?.includes(currentUser.id) || false;
-  const amIVolunteering = event.volunteers?.includes(currentUser.id) || false;
+  const amIFollowing = event.followers?.includes(userId) || false;
+  const amIVolunteering = event.volunteers?.includes(userId) || false;
+  const isOrganizer = event.organizer_id === userId;
+
+  const handleFollowToggle = async () => {
+    if (!userId || !event) return;
+
+    try {
+      if (amIFollowing) {
+        // Unfollow: delete row from event_participants
+        const { error } = await supabase
+          .from('event_participants')
+          .delete()
+          .eq('event_id', event.id)
+          .eq('user_id', userId)
+          .eq('role', 'follower');
+
+        if (error) throw error;
+      } else {
+        // Follow: insert row in event_participants
+        const { error } = await supabase
+          .from('event_participants')
+          .insert([
+            {
+              event_id: event.id,
+              user_id: userId,
+              role: 'follower'
+            }
+          ]);
+
+        if (error) throw error;
+      }
+
+      // Notify dashboard to refresh
+      if (onUpdate) {
+        onUpdate();
+      }
+    } catch (err) {
+      console.error('Error toggling follow state:', err.message);
+    }
+  };
+
+  const handlePostUpdate = async (e) => {
+    e.preventDefault();
+    if (!newUpdateText.trim() || !event) return;
+
+    setPostIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('event_updates')
+        .insert([
+          {
+            event_id: event.id,
+            text: newUpdateText.trim()
+          }
+        ]);
+
+      if (error) throw error;
+
+      setNewUpdateText('');
+      await fetchEventUpdates();
+    } catch (err) {
+      console.error('Error posting update:', err.message);
+      alert('Failed to post live update: ' + err.message);
+    } finally {
+      setPostIsLoading(false);
+    }
+  };
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} title="Event Details">
@@ -20,11 +129,11 @@ export default function EventDetailsDrawer({ isOpen, onClose, event }) {
           <div className="space-y-2 text-sm text-gray-400 font-medium">
             <div className="flex items-center space-x-2">
               <User size={16} className="text-gray-500" />
-              <span>Organized by <strong className="text-white">{event.organizerName}</strong></span>
+              <span>Organized by <strong className="text-white">{event.organizerName || 'Community Member'}</strong></span>
             </div>
             <div className="flex items-center space-x-2">
               <Calendar size={16} className="text-gray-500" />
-              <span>{event.time}</span>
+              <span>{new Date(event.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
             </div>
             <div className="flex items-center space-x-2">
               <MapPin size={16} className="text-gray-500" />
@@ -36,6 +145,7 @@ export default function EventDetailsDrawer({ isOpen, onClose, event }) {
         {/* Action Button - Follow / Unfollow */}
         <div>
           <button 
+            onClick={handleFollowToggle}
             className={`w-full py-3 px-4 rounded-xl font-bold text-sm text-center transition-all border cursor-pointer active:scale-98 ${
               amIFollowing || amIVolunteering
                 ? 'bg-[#1c1c21] text-gray-300 border-[#27272a]/80 hover:bg-[#27272a] hover:text-white' 
@@ -105,19 +215,51 @@ export default function EventDetailsDrawer({ isOpen, onClose, event }) {
         )}
         
         {/* Updates Feed */}
-        {event.updates && event.updates.length > 0 && (
-          <div className="pt-2">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Live Updates</h3>
+        <div className="pt-2 border-t border-[#27272a]/35">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Live Updates</h3>
+            {isOrganizer && (
+              <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2.5 py-0.5 rounded-full font-bold border border-orange-500/20">
+                Organizer Mode
+              </span>
+            )}
+          </div>
+
+          {/* Organizer Add Update Input Panel */}
+          {isOrganizer && (
+            <form onSubmit={handlePostUpdate} className="mb-6 space-y-3 bg-[#1c1c21] p-4 rounded-xl border border-orange-500/15">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Post live announcement</label>
+              <textarea
+                rows={2}
+                value={newUpdateText}
+                onChange={e => setNewUpdateText(e.target.value)}
+                className="w-full px-3 py-2 bg-[#141417] border border-[#27272a]/80 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-white text-xs placeholder-gray-600 resize-none"
+                placeholder="Type update message (e.g. 'Helpers arrived early!')"
+                required
+              />
+              <button
+                type="submit"
+                disabled={postIsLoading || !newUpdateText.trim()}
+                className="w-full py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm text-center flex items-center justify-center space-x-1"
+              >
+                <span>Post Announcement</span>
+              </button>
+            </form>
+          )}
+
+          {updates && updates.length > 0 ? (
             <div className="space-y-4">
-              {event.updates.map((update, i) => (
+              {updates.map((update, i) => (
                 <div key={i} className="border-l-2 border-orange-500/40 pl-4 py-1">
                   <p className="text-[10px] text-orange-500 font-bold mb-1 uppercase tracking-wider">{update.timestamp}</p>
                   <p className="text-sm text-gray-300 leading-normal">{update.text}</p>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-gray-500 italic py-2 text-center">No updates posted yet.</p>
+          )}
+        </div>
 
       </div>
     </Drawer>

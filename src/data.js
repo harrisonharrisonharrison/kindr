@@ -1,8 +1,8 @@
 export const users = [
-  { id: 'u1', name: 'You', color: '#FFFFFF' },
-  { id: 'u2', name: 'Law', color: '#8B3A3A' },
-  { id: 'u3', name: 'Shyel', color: '#1E3D2F' },
-  { id: 'u4', name: 'Pradosh', color: '#2E7D96' },
+  { id: '00000000-0000-0000-0000-000000000000', name: 'You', color: '#FFFFFF' },
+  { id: '11111111-1111-1111-1111-111111111111', name: 'Law', color: '#8B3A3A' },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Shyel', color: '#1E3D2F' },
+  { id: '33333333-3333-3333-3333-333333333333', name: 'Pradosh', color: '#2E7D96' },
 ];
 
 export const currentUser = users[0];
