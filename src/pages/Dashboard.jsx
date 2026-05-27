@@ -145,6 +145,9 @@ export default function Dashboard() {
     e.stopPropagation(); // Prevent opening event details drawer
     if (!profile) return;
     
+    const currentRole = liveParticipants.find(p => p.user_id === profile.id && p.event_id === eventId)?.role;
+    if (currentRole === 'volunteer') return; // Volunteers are implicitly following, don't toggle follow state
+
     try {
       if (isCurrentlyFollowing) {
         // Unfollow
@@ -156,6 +159,25 @@ export default function Dashboard() {
       fetchData(); // Refresh everything
     } catch (err) {
       console.error('Error following event:', err);
+    }
+  };
+
+  const handleJoinEvent = async (e, eventId, isCurrentlyJoined) => {
+    e.stopPropagation();
+    if (!profile) return;
+    
+    try {
+      if (isCurrentlyJoined) {
+        // Leave
+        await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id, role: 'volunteer' });
+      } else {
+        // Join: Delete any existing follower record first because of the unique constraint, then insert volunteer
+        await supabase.from('event_participants').delete().match({ event_id: eventId, user_id: profile.id });
+        await supabase.from('event_participants').insert({ event_id: eventId, user_id: profile.id, role: 'volunteer' });
+      }
+      fetchData();
+    } catch (err) {
+      console.error('Error joining event:', err);
     }
   };
 
@@ -470,12 +492,35 @@ export default function Dashboard() {
                           )}
                         </div>
                         
+                        {amIInvolved ? (
+                          <button 
+                            onClick={(e) => handleJoinEvent(e, event.id, true)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20"
+                            title="Leave Event"
+                          >
+                            Joined
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={(e) => handleJoinEvent(e, event.id, false)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/20 border border-orange-500"
+                            title="Join Event"
+                          >
+                            Join
+                          </button>
+                        )}
+                        
                         <button 
                           onClick={(e) => handleFollowEvent(e, event.id, amIFollowing)}
-                          className={`p-2 rounded-full transition-all flex items-center justify-center ${amIFollowing ? 'bg-rose-500/20 text-rose-500' : 'bg-[#27272a]/50 text-gray-400 hover:text-rose-500 hover:bg-rose-500/10'}`}
-                          title={amIFollowing ? "Unfollow" : "Follow"}
+                          disabled={amIInvolved}
+                          className={`p-2 rounded-full transition-all flex items-center justify-center ${
+                            amIFollowing || amIInvolved 
+                              ? 'bg-rose-500/20 text-rose-500' 
+                              : 'bg-[#27272a]/50 text-gray-400 hover:text-rose-500 hover:bg-rose-500/10'
+                          } ${amIInvolved ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={amIInvolved ? "Automatically following" : (amIFollowing ? "Unfollow" : "Follow")}
                         >
-                          <Heart size={16} className={amIFollowing ? "fill-current" : ""} />
+                          <Heart size={16} className={amIFollowing || amIInvolved ? "fill-current" : ""} />
                         </button>
                         
                         <div className="text-gray-500 group-hover:text-white transition-colors">

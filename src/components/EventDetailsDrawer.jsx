@@ -91,6 +91,39 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
     }
   };
 
+  const handleJoinToggle = async () => {
+    if (!userId || !event) return;
+
+    try {
+      if (amIVolunteering) {
+        // Leave
+        const { error } = await supabase
+          .from('event_participants')
+          .delete()
+          .eq('event_id', event.id)
+          .eq('user_id', userId)
+          .eq('role', 'volunteer');
+        if (error) throw error;
+      } else {
+        // Join (Delete any follower record first)
+        await supabase
+          .from('event_participants')
+          .delete()
+          .eq('event_id', event.id)
+          .eq('user_id', userId);
+          
+        const { error } = await supabase
+          .from('event_participants')
+          .insert([{ event_id: event.id, user_id: userId, role: 'volunteer' }]);
+        if (error) throw error;
+      }
+
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error('Error toggling join state:', err.message);
+    }
+  };
+
   const handlePostUpdate = async (e) => {
     e.preventDefault();
     if (!newUpdateText.trim() || !event) return;
@@ -129,7 +162,7 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
           <div className="space-y-2 text-sm text-gray-400 font-medium">
             <div className="flex items-center space-x-2">
               <User size={16} className="text-gray-500" />
-              <span>Organized by <strong className="text-white">{event.organizerName || 'Community Member'}</strong></span>
+              <span>Organized by <strong className="text-white">{event.organizerName || event.organizer?.name || 'Community Member'}</strong></span>
             </div>
             <div className="flex items-center space-x-2">
               <Calendar size={16} className="text-gray-500" />
@@ -142,22 +175,40 @@ export default function EventDetailsDrawer({ isOpen, onClose, event, onUpdate })
           </div>
         </div>
 
-        {/* Action Button - Follow / Unfollow */}
-        <div>
+        {/* Action Button - Join & Follow */}
+        <div className="flex space-x-3">
           <button 
-            onClick={handleFollowToggle}
-            className={`w-full py-3 px-4 rounded-xl font-bold text-sm text-center transition-all border cursor-pointer active:scale-98 ${
-              amIFollowing || amIVolunteering
-                ? 'bg-[#1c1c21] text-gray-300 border-[#27272a]/80 hover:bg-[#27272a] hover:text-white' 
+            onClick={handleJoinToggle}
+            className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all border cursor-pointer active:scale-98 ${
+              amIVolunteering
+                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
                 : 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/10'
             }`}
           >
-            {amIFollowing || amIVolunteering ? (
+            {amIVolunteering ? (
               <span className="flex items-center justify-center">
-                <CheckCircle2 size={18} className="mr-2 text-orange-500 animate-pulse" /> Following Event
+                <CheckCircle2 size={18} className="mr-2 text-emerald-500" /> Joined Event
               </span>
             ) : (
-              "+ Follow Event"
+              "Join Event"
+            )}
+          </button>
+
+          <button 
+            onClick={handleFollowToggle}
+            disabled={amIVolunteering}
+            className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all border ${
+              amIFollowing || amIVolunteering
+                ? 'bg-[#1c1c21] text-gray-300 border-[#27272a]/80' 
+                : 'bg-[#1c1c21] text-gray-300 border-[#27272a]/80 hover:bg-[#27272a] hover:text-white cursor-pointer active:scale-98'
+            } ${amIVolunteering ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {amIFollowing || amIVolunteering ? (
+              <span className="flex items-center justify-center">
+                <Heart size={16} className="mr-2 text-rose-500 fill-current" /> Following
+              </span>
+            ) : (
+              "+ Follow"
             )}
           </button>
         </div>
